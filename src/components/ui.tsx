@@ -136,12 +136,14 @@ export function Stat({
           : tone === "violet"
             ? "text-violet"
             : "text-ice";
+  // A stat is a label/value pair, so it is a description list rather than a
+  // stack of <p>s — screen readers announce the term before its value.
   return (
-    <div className="rounded-xl border border-line bg-surface p-4">
-      <p className="text-xs font-medium uppercase tracking-wider text-muted">{label}</p>
-      <p className={cx("mt-1 font-display text-2xl font-bold", toneClass)}>{value}</p>
-      {hint ? <p className="mt-1 text-xs text-muted">{hint}</p> : null}
-    </div>
+    <dl className="rounded-xl border border-line bg-surface p-4">
+      <dt className="text-xs font-medium uppercase tracking-wider text-muted">{label}</dt>
+      <dd className={cx("mt-1 font-display text-2xl font-bold", toneClass)}>{value}</dd>
+      {hint ? <dd className="mt-1 text-xs text-muted">{hint}</dd> : null}
+    </dl>
   );
 }
 

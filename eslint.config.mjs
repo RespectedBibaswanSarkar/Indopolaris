@@ -12,6 +12,13 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+
+    // Python service. Its virtualenv vendors scikit-learn, which ships
+    // JavaScript for notebook widgets — several thousand files of third-party
+    // code that ESLint walked on every run and reported warnings from. Ignoring
+    // the whole `ml/` tree is right regardless: it is a separate language with
+    // its own tooling, and `npm run ml:test` is its quality gate.
+    "ml/**",
   ]),
 ]);
 

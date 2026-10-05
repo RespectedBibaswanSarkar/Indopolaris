@@ -1,0 +1,422 @@
+// IndoPolaris — data model
+// https://pris.ly/d/prisma-schema
+//
+// Design notes / deviations from the Section 4 sketch (all deliberate, all
+// justified in README.md "Schema decisions"):
+//
+//  1. `disciplineTags` / `parameterTags` are modelled as explicit many-to-many
+//     relations to `Tag` rather than loose `String[]`. The spec already defines
+//     a `Tag` model for faceted search (Section 5.4); keeping tags as relations
+//     means a facet filter is a join, not a string match, and a typo'd tag
+//     can't be created. Field names are preserved exactly as specified.
+//  2. `Expedition` gains `slug`, `latitude`, `longitude` and `route` (GeoJSON
+//     LineString). Section 5.1 requires map pins "by station/route", which is
+//     impossible without coordinates. Stored as `Json` rather than PostGIS
+//     geometry: Leaflet only needs to read the coordinates, so we avoid an
+//     extension dependency for zero functional gain at hackathon scale.
+//  3. `OutreachDraft.sourceId` is polymorphic (sourceType + sourceId), which
+//     Prisma cannot express. Kept those two fields for spec fidelity, and added
+//     four nullable typed FKs with a Postgres CHECK constraint (in the SQL
+//     migration) that enforces exactly-one source matching `sourceType`.
+//  4. `User.passwordHash` is nullable so an institutional OIDC/Google SSO
+//     provider can be added later without a migration.
+//  5. `MediaAsset.altText` is non-nullable — Section 6 calls this out as
+//     schema-level enforcement, not a convention. Backed by a DB CHECK for
+//     non-blank and by zod validation at the form layer.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum Region {
+  Antarctica
+  Arctic
+  Himalaya
+  SouthernOcean
+}
+
+enum UserRole {
+  public
+  contributor
+  editor
+  admin
+}
+
+enum ReportStatus {
+  draft
+  review
+  published
+}
+
+enum DatasetFormat {
+  CSV
+  NetCDF
+  other
+}
+
+enum MediaType {
+  photo
+  video
+}
+
+enum TagCategory {
+  discipline
+  instrument
+  region
+}
+
+enum OutreachSourceType {
+  Report
+  Dataset
+  Publication
+  Expedition
+}
+
+enum OutreachStatus {
+  pending_review
+  approved
+  rejected
+  published
+}
+
+enum TargetChannel {
+  website
+  twitter
+  instagram
+}
+
+/// Section 5 restricts classifier input to the three prose-bearing content
+/// types. Deliberately narrower than `OutreachSourceType` (which also has
+/// Expedition): an expedition is not a document, and auto-tagging one from its
+/// title would be noise.
+enum ClassificationSourceType {
+  Report
+  Dataset
+  Publication
+}
+
+// ---------------------------------------------------------------------------
+// Users & access
+// ---------------------------------------------------------------------------
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String?
+  role         UserRole @default(public)
+  institution  String?
+  image        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  uploadedReports  Report[]
+  uploadedDatasets Dataset[]
+  uploadedMedia    MediaAsset[]
+  reviewedDrafts   OutreachDraft[] @relation("DraftReviewer")
+
+  @@index([role])
+}
+
+// ---------------------------------------------------------------------------
+// Narrative spine
+// ---------------------------------------------------------------------------
+
+model Expedition {
+  id            String    @id @default(cuid())
+  slug          String    @unique
+  title         String
+  region        Region
+  startDate     DateTime
+  endDate       DateTime?
+  leadScientist String
+  station       String
+  summary       String
+  latitude      Float
+  longitude     Float
+  /// GeoJSON LineString of the expedition track, e.g.
+  /// { "type": "LineString", "coordinates": [[lng, lat], ...] }
+  route         Json?
+  vessel        String?
+  isFeatured    Boolean   @default(false)
+  heroImageId   String?   @unique
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  heroImage      MediaAsset?     @relation("ExpeditionHeroImage", fields: [heroImageId], references: [id], onDelete: SetNull)
+  media          MediaAsset[]    @relation("ExpeditionMedia")
+  reports        Report[]
+  datasets       Dataset[]
+  publications   Publication[]
+  regionTags     Tag[]           @relation("ExpeditionRegionTags")
+  outreachDrafts OutreachDraft[]
+
+  @@index([region])
+  @@index([startDate])
+  @@index([isFeatured])
+}
+
+// ---------------------------------------------------------------------------
+// Repository content
+// ---------------------------------------------------------------------------
+
+model Report {
+  id             String       @id @default(cuid())
+  expeditionId   String
+  title          String
+  fileUrl        String
+  fileType       String
+  abstract       String
+  disciplineTags Tag[]        @relation("ReportDisciplineTags")
+  uploadedById   String
+  status         ReportStatus @default(draft)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  expedition     Expedition      @relation(fields: [expeditionId], references: [id], onDelete: Cascade)
+  uploadedBy     User            @relation(fields: [uploadedById], references: [id])
+  outreachDrafts OutreachDraft[]
+
+  @@index([expeditionId])
+  @@index([status])
+}
+
+model Dataset {
+  id            String        @id @default(cuid())
+  expeditionId  String
+  title         String
+  description   String
+  format        DatasetFormat
+  fileUrl       String
+  sizeBytes     BigInt
+  instrument    String
+  parameterTags Tag[]         @relation("DatasetParameterTags")
+  doi           String?       @unique
+  license       String        @default("CC BY 4.0")
+  uploadedById  String
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  expedition     Expedition      @relation(fields: [expeditionId], references: [id], onDelete: Cascade)
+  uploadedBy     User            @relation(fields: [uploadedById], references: [id])
+  outreachDrafts OutreachDraft[]
+
+  @@index([expeditionId])
+  @@index([format])
+}
+
+model Publication {
+  id                  String   @id @default(cuid())
+  title               String
+  authors             String[]
+  journal             String
+  year                Int
+  doi                 String?  @unique
+  abstract            String
+  fileUrl             String?
+  relatedExpeditionId String?
+  createdAt           DateTime @default(now())
+
+  relatedExpedition Expedition?     @relation(fields: [relatedExpeditionId], references: [id], onDelete: SetNull)
+  disciplineTags    Tag[]           @relation("PublicationDisciplineTags")
+  outreachDrafts    OutreachDraft[]
+
+  @@index([year])
+  @@index([relatedExpeditionId])
+}
+
+// ---------------------------------------------------------------------------
+// Media
+// ---------------------------------------------------------------------------
+
+model MediaAsset {
+  id           String    @id @default(cuid())
+  expeditionId String?
+  type         MediaType
+  url          String
+  thumbnailUrl String?
+  /// Object key inside the S3/MinIO bucket, e.g. "expeditions/antarctica-42/hero.jpg"
+  storageKey   String?
+  caption      String
+  /// REQUIRED — Section 6 (GIGW / WCAG). Non-nullable here, CHECK (btrim <> '')
+  /// in SQL migration, zod `.min()` at the upload form.
+  altText      String
+  credit       String
+  capturedAt   DateTime?
+  uploadedById String
+  createdAt    DateTime  @default(now())
+
+  expedition         Expedition?     @relation("ExpeditionMedia", fields: [expeditionId], references: [id], onDelete: SetNull)
+  heroForExpedition  Expedition?     @relation("ExpeditionHeroImage")
+  uploadedBy         User            @relation(fields: [uploadedById], references: [id])
+  suggestedForDrafts OutreachDraft[] @relation("DraftSuggestedMedia")
+
+  @@index([expeditionId])
+  @@index([type])
+  @@index([capturedAt])
+}
+
+// ---------------------------------------------------------------------------
+// AI outreach drafts (human-in-the-loop, never auto-published)
+// ---------------------------------------------------------------------------
+
+model OutreachDraft {
+  id             String             @id @default(cuid())
+  sourceType     OutreachSourceType
+  sourceId       String
+  draftText      String
+  draftCaption   String
+  suggestedMedia MediaAsset[]       @relation("DraftSuggestedMedia")
+  status         OutreachStatus     @default(pending_review)
+  reviewedById   String?
+  targetChannel  TargetChannel      @default(website)
+  publishedAt    DateTime?
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  // Typed source FKs. Exactly one is non-null and it must match sourceType —
+  // enforced by the `outreach_draft_single_source` CHECK constraint.
+  reportId      String?
+  datasetId     String?
+  publicationId String?
+  expeditionId  String?
+
+  report      Report?      @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  dataset     Dataset?     @relation(fields: [datasetId], references: [id], onDelete: Cascade)
+  publication Publication? @relation(fields: [publicationId], references: [id], onDelete: Cascade)
+  expedition  Expedition?  @relation(fields: [expeditionId], references: [id], onDelete: Cascade)
+  reviewedBy  User?        @relation("DraftReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  engagementEvents EngagementEvent[]
+
+  @@index([status])
+  @@index([sourceType, sourceId])
+  @@index([publishedAt])
+}
+
+// ---------------------------------------------------------------------------
+// Faceted search vocabulary
+// ---------------------------------------------------------------------------
+
+model Tag {
+  id       String      @id @default(cuid())
+  label    String
+  slug     String
+  category TagCategory
+
+  reports      Report[]      @relation("ReportDisciplineTags")
+  datasets     Dataset[]     @relation("DatasetParameterTags")
+  publications Publication[] @relation("PublicationDisciplineTags")
+  expeditions  Expedition[]  @relation("ExpeditionRegionTags")
+
+  @@unique([label, category])
+  @@unique([slug, category])
+  @@index([category])
+}
+
+// ---------------------------------------------------------------------------
+// ML / RL operational state
+//
+// These four models exist so that the numbers the admin dashboard shows are
+// read from real rows rather than hardcoded. Section 8.4 is explicit: the
+// classifier accuracy displayed must come from the actual `MLModelVersion` row,
+// not a fabricated constant.
+// ---------------------------------------------------------------------------
+
+enum TimeSlot {
+  morning
+  afternoon
+  evening
+}
+
+/// One inference call, recorded for every classified upload. Retaining the full
+/// confidence map (not just the winning tag) means the review UI can be
+/// re-thresholded later without re-running inference over the archive.
+model ClassificationLog {
+  id               String                   @id @default(cuid())
+  sourceType       ClassificationSourceType
+  sourceId         String
+  predictedTags    String[]
+  /// tag -> confidence in [0,1]. JSON rather than a join table: this is an
+  /// immutable inference record, never queried as a facet.
+  confidenceScores Json
+  modelVersion     String
+  createdAt        DateTime                 @default(now())
+
+  @@index([sourceType, sourceId])
+  @@index([modelVersion])
+  @@index([createdAt])
+}
+
+/// The model registry. `isActive` marks the version currently served by
+/// /classify; training registers a new row rather than overwriting the old one,
+/// so a regression can be traced to the exact artifact that caused it.
+model MLModelVersion {
+  id            String   @id @default(cuid())
+  name          String
+  version       String
+  trainedAt     DateTime
+  /// Provenance of the training corpus, e.g. "NASA GES DISC Earth-science
+  /// publications". See README "Training corpus" — this is a real labelled
+  /// corpus, but it is Earth science rather than NCPOR's own taxonomy.
+  datasetSource String
+  accuracy      Float
+  macroF1       Float
+  artifactPath  String
+  isActive      Boolean  @default(false)
+
+  @@unique([name, version])
+  @@index([name, isActive])
+}
+
+/// Beta posterior for one (channel × time-slot) arm of the contextual bandit
+/// that picks where and when to publish. Section 6: 3 channels × 3 slots = 9
+/// arms, each Beta(alpha, beta) seeded at Beta(1,1) — a uniform prior.
+///
+/// This state is written by the Python service, not by Next.js, but it lives in
+/// Postgres so there is exactly one source of truth for it.
+model BanditArmState {
+  id          String   @id @default(cuid())
+  /// e.g. "instagram_morning" — see `build_arm(channel, timeSlot)` in ml/app/bandit.py.
+  /// Enforced by the `bandit_arm_name_parsable` CHECK in migration 2_ml.
+  arm         String   @unique
+  alpha       Float    @default(1)
+  beta        Float    @default(1)
+  totalPulls  Int      @default(0)
+  totalReward Float    @default(0)
+  updatedAt   DateTime @updatedAt
+
+  @@index([totalPulls])
+}
+
+/// One feedback observation for a published draft. `isSimulated` is not a
+/// nicety: Section 6 requires synthetic feedback to be permanently separable
+/// from real analytics, so a later analysis of outreach performance can never
+/// silently mix the two.
+model EngagementEvent {
+  id              String        @id @default(cuid())
+  outreachDraftId String
+  channel         TargetChannel
+  timeSlotBucket  TimeSlot
+  impressions     Int
+  clicks          Int
+  /// Normalised to [0,1] — the bandit regresses on this, not on raw clicks.
+  reward          Float
+  isSimulated     Boolean       @default(false)
+  createdAt       DateTime      @default(now())
+
+  outreachDraft OutreachDraft @relation(fields: [outreachDraftId], references: [id], onDelete: Cascade)
+
+  @@index([outreachDraftId])
+  @@index([channel, timeSlotBucket])
+  @@index([isSimulated, createdAt])
+}

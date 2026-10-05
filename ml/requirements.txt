@@ -1,0 +1,47 @@
+# IndoPolaris — ML service dependencies.
+#
+# Pinned to exact versions for reproducibility: this file is the lockfile, and a
+# classifier artifact trained against one scikit-learn major will refuse to
+# unpickle under another. sklearn checks the version at load time and raises
+# rather than silently mis-predicting, which is the behaviour we want.
+#
+# Regenerate with:
+#   ml/.venv/bin/pip install -U fastapi "uvicorn[standard]" python-multipart \
+#     pydantic pydantic-settings scikit-learn joblib "psycopg[binary]" \
+#     requests httpx pytest
+#   ml/.venv/bin/pip freeze > ml/requirements.txt
+
+# --- HTTP layer ---
+fastapi==0.141.1
+uvicorn[standard]==0.54.0
+python-multipart==0.0.32
+
+# --- Validation & settings ---
+pydantic==2.13.5
+pydantic-settings==2.15.0
+
+# --- ML ---
+# scikit-learn pulls in numpy/scipy/joblib/threadpoolctl; they are pinned below
+# because the artifact's reproducibility depends on them too.
+scikit-learn==1.9.1
+joblib==1.6.0
+numpy==2.5.3
+scipy==1.18.1
+threadpoolctl==3.7.0
+
+# --- Postgres driver ---
+# The service reads/writes MLModelVersion and ClassificationLog. psycopg 3 in
+# binary mode ships prebuilt wheels, so no libpq toolchain is needed at install.
+psycopg[binary]==3.3.6
+
+# --- corpus ingestion ---
+# download_dataset.py only. Pinned because a transitive urllib3 major bump can
+# change redirect handling, and this fetches a 4.5 MB JSON over a redirect.
+requests==2.34.2
+
+# --- Test & tooling ---
+# httpx2, not httpx: Starlette 1.7 deprecates httpx for `starlette.testclient`
+# and warns on import. The API is equivalent, so httpx2 is the direct
+# replacement. Also drives simulate_engagement.py's HTTP calls (Phase 7).
+httpx2==2.13.1
+pytest==9.1.1

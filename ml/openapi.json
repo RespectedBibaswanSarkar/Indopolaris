@@ -1,0 +1,638 @@
+{
+  "components": {
+    "schemas": {
+      "ArmState": {
+        "description": "One arm's posterior, as reported by /recommend.",
+        "example": {
+          "alpha": 7.4,
+          "arm": "instagram_morning",
+          "beta": 3.1,
+          "channel": "instagram",
+          "mean": 0.7048,
+          "observedMean": 0.7,
+          "timeSlot": "morning",
+          "totalPulls": 10,
+          "totalReward": 7.0
+        },
+        "properties": {
+          "alpha": {
+            "title": "Alpha",
+            "type": "number"
+          },
+          "arm": {
+            "title": "Arm",
+            "type": "string"
+          },
+          "beta": {
+            "title": "Beta",
+            "type": "number"
+          },
+          "channel": {
+            "title": "Channel",
+            "type": "string"
+          },
+          "mean": {
+            "title": "Mean",
+            "type": "number"
+          },
+          "observedMean": {
+            "title": "Observedmean",
+            "type": "number"
+          },
+          "timeSlot": {
+            "title": "Timeslot",
+            "type": "string"
+          },
+          "totalPulls": {
+            "title": "Totalpulls",
+            "type": "integer"
+          },
+          "totalReward": {
+            "title": "Totalreward",
+            "type": "number"
+          }
+        },
+        "required": [
+          "arm",
+          "channel",
+          "timeSlot",
+          "alpha",
+          "beta",
+          "mean",
+          "observedMean",
+          "totalPulls",
+          "totalReward"
+        ],
+        "title": "ArmState",
+        "type": "object"
+      },
+      "ClassifyRequest": {
+        "example": {
+          "sourceType": "Report",
+          "text": "We deployed an upward-looking acoustic profiler through 340 m of first-year ice to measure krill swarms during the austral winter, sampling at 1 Hz for 72 hours."
+        },
+        "properties": {
+          "sourceId": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sourceid"
+          },
+          "sourceType": {
+            "default": "Report",
+            "maxLength": 32,
+            "minLength": 1,
+            "title": "Sourcetype",
+            "type": "string"
+          },
+          "text": {
+            "maxLength": 5000,
+            "minLength": 1,
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "title": "ClassifyRequest",
+        "type": "object"
+      },
+      "ClassifyResponse": {
+        "example": {
+          "confidenceScores": {
+            "Biology / Ecology": 0.62,
+            "Data Science / Instrumentation": 0.24
+          },
+          "modelVersion": "v1",
+          "predictedTags": [
+            "Biology / Ecology",
+            "Data Science / Instrumentation"
+          ]
+        },
+        "properties": {
+          "confidenceScores": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "title": "Confidencescores",
+            "type": "object"
+          },
+          "modelVersion": {
+            "title": "Modelversion",
+            "type": "string"
+          },
+          "predictedTags": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Predictedtags",
+            "type": "array"
+          }
+        },
+        "required": [
+          "predictedTags",
+          "confidenceScores",
+          "modelVersion"
+        ],
+        "title": "ClassifyResponse",
+        "type": "object"
+      },
+      "ErrorBody": {
+        "example": {
+          "code": "INVALID_INPUT",
+          "message": "text: String should have at least 1 character"
+        },
+        "properties": {
+          "code": {
+            "$ref": "#/components/schemas/ErrorCode"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "ErrorBody",
+        "type": "object"
+      },
+      "ErrorCode": {
+        "description": "The three failure modes a caller has to be able to branch on.",
+        "enum": [
+          "INVALID_INPUT",
+          "MODEL_NOT_LOADED",
+          "INTERNAL"
+        ],
+        "title": "ErrorCode",
+        "type": "string"
+      },
+      "ErrorResponse": {
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/ErrorBody"
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "title": "ErrorResponse",
+        "type": "object"
+      },
+      "FeedbackRequest": {
+        "example": {
+          "channel": "instagram",
+          "clicks": 84,
+          "draftId": "clx0a1b2c3d4e5f6g7h8i9j0k1",
+          "impressions": 1200,
+          "isSimulated": false,
+          "timeSlot": "morning"
+        },
+        "properties": {
+          "channel": {
+            "maxLength": 32,
+            "minLength": 1,
+            "title": "Channel",
+            "type": "string"
+          },
+          "clicks": {
+            "minimum": 0.0,
+            "title": "Clicks",
+            "type": "integer"
+          },
+          "draftId": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Draftid",
+            "type": "string"
+          },
+          "impressions": {
+            "minimum": 0.0,
+            "title": "Impressions",
+            "type": "integer"
+          },
+          "isSimulated": {
+            "default": false,
+            "title": "Issimulated",
+            "type": "boolean"
+          },
+          "timeSlot": {
+            "maxLength": 32,
+            "minLength": 1,
+            "title": "Timeslot",
+            "type": "string"
+          }
+        },
+        "required": [
+          "draftId",
+          "channel",
+          "timeSlot",
+          "impressions",
+          "clicks"
+        ],
+        "title": "FeedbackRequest",
+        "type": "object"
+      },
+      "FeedbackResponse": {
+        "example": {
+          "alpha": 8.4,
+          "arm": "instagram_morning",
+          "beta": 4.1,
+          "mean": 0.672,
+          "recorded": true,
+          "reward": 0.07,
+          "totalPulls": 11
+        },
+        "properties": {
+          "alpha": {
+            "title": "Alpha",
+            "type": "number"
+          },
+          "arm": {
+            "title": "Arm",
+            "type": "string"
+          },
+          "beta": {
+            "title": "Beta",
+            "type": "number"
+          },
+          "mean": {
+            "title": "Mean",
+            "type": "number"
+          },
+          "recorded": {
+            "title": "Recorded",
+            "type": "boolean"
+          },
+          "reward": {
+            "title": "Reward",
+            "type": "number"
+          },
+          "totalPulls": {
+            "title": "Totalpulls",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "recorded",
+          "arm",
+          "reward",
+          "alpha",
+          "beta",
+          "mean",
+          "totalPulls"
+        ],
+        "title": "FeedbackResponse",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "HealthResponse": {
+        "properties": {
+          "checks": {
+            "additionalProperties": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Checks",
+            "type": "object"
+          },
+          "modelLoaded": {
+            "title": "Modelloaded",
+            "type": "boolean"
+          },
+          "modelVersion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Modelversion"
+          },
+          "status": {
+            "enum": [
+              "ok",
+              "degraded"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "modelLoaded",
+          "checks"
+        ],
+        "title": "HealthResponse",
+        "type": "object"
+      },
+      "RecommendResponse": {
+        "example": {
+          "arm": "instagram_morning",
+          "arms": [],
+          "channel": "instagram",
+          "expectedReward": 0.7048,
+          "exploration": 0.8123,
+          "reason": "highest Thompson sample over 9 arms",
+          "timeSlot": "morning"
+        },
+        "properties": {
+          "arm": {
+            "title": "Arm",
+            "type": "string"
+          },
+          "arms": {
+            "items": {
+              "$ref": "#/components/schemas/ArmState"
+            },
+            "title": "Arms",
+            "type": "array"
+          },
+          "channel": {
+            "title": "Channel",
+            "type": "string"
+          },
+          "draftId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Draftid"
+          },
+          "expectedReward": {
+            "title": "Expectedreward",
+            "type": "number"
+          },
+          "exploration": {
+            "title": "Exploration",
+            "type": "number"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "timeSlot": {
+            "title": "Timeslot",
+            "type": "string"
+          }
+        },
+        "required": [
+          "channel",
+          "timeSlot",
+          "arm",
+          "reason",
+          "exploration",
+          "expectedReward",
+          "arms"
+        ],
+        "title": "RecommendResponse",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "summary": "Discipline auto-tagging for the IndoPolaris polar archive, plus the publish-time contextual bandit (Phase 7).",
+    "title": "IndoPolaris ML Service",
+    "version": "0.2.0",
+    "x-generated-by": "ml/scripts/export_openapi.py"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/classify": {
+      "post": {
+        "description": "Auto-tag `text` (1\u20135000 characters) with IndoPolaris discipline tags.\n\nReturns `predictedTags` (at or above the confidence threshold) and\n`confidenceScores` for every label. An empty `predictedTags` is a valid\nanswer meaning \"no confident tag\" \u2014 the Node side then stores the record\nwith tagging pending rather than attaching a weak guess (Section 6).",
+        "operationId": "classify_classify_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClassifyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClassifyResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Malformed request body"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Model artifact not loaded"
+          }
+        },
+        "summary": "Predict IndoPolaris discipline tags for a document"
+      }
+    },
+    "/feedback": {
+      "post": {
+        "description": "Fold one engagement observation into its arm's Beta posterior.\n\nThe write is two statements in one transaction: the `EngagementEvent`\nrow and the `BanditArmState` update. They cannot come apart \u2014 see\n`db.record_feedback`.\n\n`recorded: false` in the response means the observation was *not*\npersisted (no DATABASE_URL configured, or the insert failed). That is a\n200, not a 500: the caller has a genuine measurement either way, and\nraising would misrepresent a lost write as a bad request. The distinction\nmatters \u2014 a false here means the bandit will not learn from this event,\nwhich someone has to notice.",
+        "operationId": "feedback_feedback_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FeedbackRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeedbackResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Malformed request body"
+          }
+        },
+        "summary": "Record engagement and update the arm posterior"
+      }
+    },
+    "/health": {
+      "get": {
+        "description": "Docker's healthcheck and Node's startup probe both read this.\n\n`ok` requires the model to be loaded. The database is reported but does\nnot gate the status: an unconfigured database is a valid local-dev mode,\nand failing readiness on it would make the container flap instead of\nletting the service serve predictions without an audit trail.",
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Liveness, model artifact and database reachability"
+      }
+    },
+    "/recommend": {
+      "get": {
+        "description": "Pick where and when to publish.\n\nSamples Beta(alpha, beta) once per arm and returns the argmax. Reads\n`BanditArmState` on every call \u2014 no in-memory cache \u2014 because the\nposteriors are the shared state between this service and any other\nwriter, and a cached copy would recommend from a snapshot the rest of\nthe system has already moved past.\n\n`exclude` is a comma-separated list of arms to hold back, so a simulator\nor an A/B harness can force exploration of a specific arm.\n\n`draftId` is echoed back and otherwise unused: it makes the response\ntraceable in a log, which is the only reason it exists.",
+        "operationId": "recommend_recommend_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "draftId",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Draftid"
+            }
+          },
+          {
+            "in": "query",
+            "name": "exclude",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Exclude"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecommendResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Thompson-sampled channel and time-slot for the next publish"
+      }
+    }
+  }
+}
